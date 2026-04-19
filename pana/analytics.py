@@ -459,3 +459,28 @@ class PanaAnalytics:
                 "Últimos 3 meses de movimientos Deuna"
             ]
         }
+
+    # ── 12. ultima_transaccion ────────────────────────────────────────────────
+
+    def ultima_transaccion(self, tipo: str = "ingreso") -> dict:
+        if self.df.empty:
+            return {}
+        if tipo == "ingreso":
+            subset = self._ingresos(self.df)
+        elif tipo == "egreso":
+            subset = self._egresos(self.df)
+        else:
+            subset = self.df
+
+        if subset.empty:
+            return {}
+
+        row = subset.sort_values(["fecha", "hora"], ascending=False).iloc[0]
+        return {
+            "fecha": str(row["fecha"].date()),
+            "hora": row["hora"],
+            "monto": round(float(row["monto"]), 2),
+            "tipo_movimiento": row["tipo_movimiento"],
+            "id_cliente": row["id_cliente"],
+            "comentario": row["comentarios_transaccion"],
+        }
