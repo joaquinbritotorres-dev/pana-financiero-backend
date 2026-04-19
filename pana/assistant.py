@@ -1,5 +1,6 @@
 import json
 import os
+import pandas as pd
 from openai import AsyncOpenAI
 from .analytics import PanaAnalytics
 from .tools import TOOLS
@@ -103,3 +104,77 @@ async def responder(pregunta: str, id_negocio: str) -> str:
     )
 
     return final.choices[0].message.content or "No pude procesar tu consulta. Intenta de nuevo, mijo."
+
+
+async def sql_responder(pregunta: str, id_negocio: str) -> str:
+    """
+    Alternativa a responder() usando Text-to-SQL para precisión exacta.
+    El LLM genera SQL → SQLite ejecuta → LLM redacta respuesta.
+    Cero alucinaciones numéricas: los números los produce SQLite.
+    """
+    from .sql_engine import run_sql_query, SCHEMA_DESCRIPTION, _extract_sql
+
+    model = os.environ.get("OPENAI_MODEL", "gpt-4o-mini")
+    client = _get_client()
+    meta = NEGOCIOS_META.get(id_negocio, {})
+    nombre = meta.get("nombre", "tu negocio")
+
+    # PASO 1: LLM genera la query SQL
+    sql_prompt = f"""Eres un experto en SQL. Tienes esta tabla de base de datos:
+
+{SCHEMA_DESCRIPTION}
+
+Reglas estrictas:
+- Solo devuelve la query SQL, nada más
+- No expliques nada
+- No uses markdown ni backticks
+- La query debe ser SQLite válido
+- ventas = tipo_movimiento = 'ingreso'
+- gastos = tipo_movimiento = 'egreso'
+
+Pregunta de negocio: {pregunta}
+
+SQL:"""
+
+    sql_response = await client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": sql_prompt}],
+        temperature=0,
+    )
+
+    raw_sql = sql_response.choices[0].message.content or ""
+
+    sql_query = _extract_sql(raw_sql)
+
+    # PASO 2: SQLite ejecuta la query — cero alucinaciones
+    try:
+        resultado_df = run_sql_query(sql_query, id_negocio)
+        resultado_str = resultado_df.to_string(index=False)
+    except Exception as e:
+        return (
+            f"No pude procesar esa consulta, caserito. "
+            f"Intenta preguntar de otra forma. (Error interno: {e})"
+        )
+
+    if resultado_df.empty:
+        return "No encontré datos para esa consulta en tu negocio, mijo."
+
+    # PASO 3: LLM redacta la respuesta en español ecuatoriano
+    respuesta_prompt = f"""Eres Pana Financiero, el asistente financiero de {nombre}.
+Habla en español ecuatoriano informal. Usa "caserito", "mijo", "bacán" con moderación.
+Responde en 2-4 frases máximo. Sé directo y claro. Usa $ para montos.
+No uses términos contables complejos.
+
+Pregunta del comerciante: {pregunta}
+Datos exactos de la base de datos:
+{resultado_str}
+
+Responde de forma natural y conversacional:"""
+
+    final_response = await client.chat.completions.create(
+        model=model,
+        messages=[{"role": "user", "content": respuesta_prompt}],
+        temperature=0.3,
+    )
+
+    return final_response.choices[0].message.content or "No pude procesar tu consulta. Intenta de nuevo, mijo."
