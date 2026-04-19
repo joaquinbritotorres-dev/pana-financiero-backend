@@ -65,38 +65,26 @@ async def responder(pregunta: str, id_negocio: str) -> str:
 
     choice = response.choices[0]
 
-    # Si no eligió ningún tool, dar sugerencia amable
     if choice.finish_reason != "tool_calls" or not choice.message.tool_calls:
-        fallback = (
-            "¡Hola! Soy tu Pana Financiero 💰 Puedo ayudarte con:\n"
-            "• ¿Cuánto vendí hoy?\n"
-            "• ¿Cuánto me quedó limpio esta semana?\n"
-            "• ¿Quiénes son mis mejores caseritos?\n\n"
-            "¿Qué quieres saber de tu negocio?"
+        retry = await client.chat.completions.create(
+            model=model,
+            messages=messages,
+            tools=TOOLS,
+            tool_choice="required",
         )
-        # Intentar que el modelo reformule en tono ecuatoriano
-        try:
-            simple = await client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": _system_prompt(id_negocio)},
-                    {"role": "user", "content": pregunta},
-                    {
-                        "role": "assistant",
-                        "content": (
-                            "No encontré una herramienta específica para eso. "
-                            "Sugiere amablemente las 3 preguntas más útiles que sí puedes responder."
-                        ),
-                    },
-                ],
+        retry_choice = retry.choices[0]
+        if not retry_choice.message.tool_calls:
+            return (
+                "No entendí bien tu pregunta, caserito. "
+                "Puedes preguntarme cosas como: "
+                "¿Cuánto vendí hoy?, ¿Quiénes son mis mejores caseritos?, "
+                "¿En qué gasté esta semana?, ¿Cuánto me quedó limpio?"
             )
-            return simple.choices[0].message.content or fallback
-        except Exception:
-            return fallback
-
-    # Ejecutar todas las tool calls
-    tool_calls = choice.message.tool_calls
-    messages.append(choice.message)
+        tool_calls = retry_choice.message.tool_calls
+        messages.append(retry_choice.message)
+    else:
+        tool_calls = choice.message.tool_calls
+        messages.append(choice.message)
 
     for tc in tool_calls:
         args = json.loads(tc.function.arguments)
