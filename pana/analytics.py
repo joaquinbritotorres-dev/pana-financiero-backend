@@ -510,3 +510,48 @@ class PanaAnalytics:
             "nombre_cliente": self._get_cliente_nombre(row["id_cliente"]),
             "comentario": row["comentarios_transaccion"],
         }
+
+    # ── 13. comisiones_deuna ──────────────────────────────────────────────────
+
+    def comisiones_deuna(self, periodo: str = "mes") -> dict:
+        """
+        Calcula cuánto se fue en comisiones de Deuna (2% por transacción de ingreso).
+        """
+        if self.df.empty:
+            return {}
+
+        if periodo == "semana":
+            start, end = self._week_range_aligned(0)
+        else:
+            start, end = self._month_range_aligned(0)
+
+        chunk = self._ingresos(self._filter_period(self.df, start, end))
+
+        if chunk.empty:
+            return {
+                "periodo": periodo,
+                "desde": str(start.date()),
+                "hasta": str(end.date()),
+                "total_ingresos": 0,
+                "num_transacciones": 0,
+                "tasa_comision_pct": 2.0,
+                "total_comision": 0,
+                "promedio_comision_por_tx": 0,
+            }
+
+        total_ingresos = round(float(chunk["monto"].sum()), 2)
+        num_tx = int(len(chunk))
+        tasa = 0.02
+        total_comision = round(total_ingresos * tasa, 2)
+        promedio_por_tx = round(total_comision / num_tx, 4) if num_tx else 0
+
+        return {
+            "periodo": periodo,
+            "desde": str(start.date()),
+            "hasta": str(end.date()),
+            "total_ingresos": total_ingresos,
+            "num_transacciones": num_tx,
+            "tasa_comision_pct": 2.0,
+            "total_comision": total_comision,
+            "promedio_comision_por_tx": promedio_por_tx,
+        }
