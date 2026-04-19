@@ -3,6 +3,7 @@ import sqlite3
 import re
 import pandas as pd
 from .loader import get_df
+from .analytics import CLIENTE_MAP
 
 
 def _build_connection(id_negocio: str) -> sqlite3.Connection:
@@ -15,6 +16,17 @@ def _build_connection(id_negocio: str) -> sqlite3.Connection:
     df_copy["fecha"] = df_copy["fecha"].astype(str)
     if "localidad" in df_copy.columns:
         df_copy["localidad"] = df_copy["localidad"].apply(str)
+    
+    # Agregar nombres de clientes para mejor lectura del LLM
+    def _get_name(cid):
+        if not isinstance(cid, str): return "Desconocido"
+        try:
+            num = int(re.sub(r"[^0-9]", "", cid))
+            return CLIENTE_MAP[num % len(CLIENTE_MAP)]
+        except: return "Caserito"
+    
+    df_copy["nombre_cliente"] = df_copy["id_cliente"].apply(_get_name)
+    
     df_copy.to_sql("transacciones", conn, index=False, if_exists="replace")
     return conn
 
@@ -58,6 +70,7 @@ Columnas:
 - localidad: TEXT — coordenadas geográficas
 - comentarios_transaccion: TEXT — descripción o comentario de la transacción
 - id_cliente: TEXT — identificador del cliente
+- nombre_cliente: TEXT — nombre legible del cliente (usar este en las respuestas)
 
 Reglas importantes:
 - "ventas" siempre significa WHERE tipo_movimiento = 'ingreso'

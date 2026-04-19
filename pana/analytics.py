@@ -3,6 +3,14 @@ import re
 from datetime import timedelta
 import pandas as pd
 
+CLIENTE_MAP = [
+    "Juan Pérez", "María García", "José Loor", "Carmen Rodríguez", "Luis Chiriboga",
+    "Rosa Espinoza", "Carlos Vera", "Ana Cevallos", "Jorge Intriago", "Elena Mendoza",
+    "Pedro Castillo", "Martha Villavicencio", "Francisco Noboa", "Lucía Guerrero", "Manuel Valdivieso",
+    "Teresa Aguiar", "Ricardo Freire", "Silvia Ortiz", "Wilson Caicedo", "Gladys Murillo",
+    "Andrés Cárdenas", "Isabel Solórzano", "Fabian Paredes", "Mónica Figueroa", "Diego Santamaría"
+]
+
 
 class PanaAnalytics:
     def __init__(self, df: pd.DataFrame):
@@ -11,6 +19,16 @@ class PanaAnalytics:
             self._hoy = df["fecha"].max().normalize()
         else:
             self._hoy = pd.Timestamp("2025-01-01")
+
+    def _get_cliente_nombre(self, id_cliente: str) -> str:
+        if not id_cliente or not isinstance(id_cliente, str):
+            return "Consumidor Final"
+        try:
+            # Extraer el número del ID (ej: CLI-0040 -> 40)
+            num = int(re.sub(r"[^0-9]", "", id_cliente))
+            return CLIENTE_MAP[num % len(CLIENTE_MAP)]
+        except:
+            return "Caserito Anónimo"
 
     # ── helpers ──────────────────────────────────────────────────────────────
 
@@ -169,7 +187,12 @@ class PanaAnalytics:
         grp["ticket_promedio"] = (grp["total_gastado"] / grp["num_visitas"]).round(2)
         grp["total_gastado"] = grp["total_gastado"].round(2)
         top = grp.sort_values("total_gastado", ascending=False).head(limite)
-        return top.to_dict("records")
+        
+        # Agregar nombres legibles
+        result = top.to_dict("records")
+        for r in result:
+            r["nombre_cliente"] = self._get_cliente_nombre(r["id_cliente"])
+        return result
 
     # ── 5. clientes_inactivos ─────────────────────────────────────────────────
 
@@ -195,6 +218,7 @@ class PanaAnalytics:
             intervalo_tipico = int(diffs.median()) if not diffs.empty else 0
             result.append({
                 "id_cliente": cliente,
+                "nombre_cliente": self._get_cliente_nombre(cliente),
                 "dias_sin_venir": int(dias_sin),
                 "intervalo_tipico": intervalo_tipico,
                 "total_historico": round(float(g["monto"].sum()), 2),
@@ -386,6 +410,7 @@ class PanaAnalytics:
                 "tipo_movimiento": row["tipo_movimiento"],
                 "comentario": row["comentarios_transaccion"],
                 "id_cliente": row["id_cliente"],
+                "nombre_cliente": self._get_cliente_nombre(row["id_cliente"]),
             }
             for _, row in found.iterrows()
         ]
@@ -482,5 +507,6 @@ class PanaAnalytics:
             "monto": round(float(row["monto"]), 2),
             "tipo_movimiento": row["tipo_movimiento"],
             "id_cliente": row["id_cliente"],
+            "nombre_cliente": self._get_cliente_nombre(row["id_cliente"]),
             "comentario": row["comentarios_transaccion"],
         }
