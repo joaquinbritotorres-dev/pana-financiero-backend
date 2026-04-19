@@ -387,3 +387,73 @@ class PanaAnalytics:
             }
             for _, row in found.iterrows()
         ]
+
+    # ── 11. capacidad_prestamo ────────────────────────────────────────────────
+
+    def capacidad_prestamo(self) -> dict:
+        """
+        Calcula si el comerciante puede pedir un préstamo
+        y cuánto. Usa los últimos 6 meses de datos para
+        que sea más representativo.
+        """
+        if self.df.empty:
+            return {}
+
+        # Últimos 6 meses desde el último dato
+        hoy = self._hoy
+        hace_6_meses = hoy - pd.DateOffset(months=6)
+
+        periodo = self._filter_period(self.df, hace_6_meses, hoy)
+
+        ingresos_6m = round(float(
+            self._ingresos(periodo)["monto"].sum()), 2)
+        egresos_6m = round(float(
+            self._egresos(periodo)["monto"].sum()), 2)
+        utilidad_6m = round(ingresos_6m + egresos_6m, 2)
+
+        # Promedios mensuales
+        meses = max(1, int((hoy - hace_6_meses).days / 30))
+        ingreso_mensual = round(ingresos_6m / meses, 2)
+        egreso_mensual = round(abs(egresos_6m) / meses, 2)
+        utilidad_mensual = round(utilidad_6m / meses, 2)
+
+        # Capacidad de pago: 40% de la utilidad mensual
+        # (criterio estándar de bancos ecuatorianos)
+        capacidad_pago = round(utilidad_mensual * 0.40, 2)
+
+        # Monto estimado de préstamo
+        # Los bancos dan entre 12 y 24 cuotas típicamente
+        prestamo_conservador = round(capacidad_pago * 12, 2)
+        prestamo_optimo = round(capacidad_pago * 18, 2)
+
+        # Semáforo de salud financiera
+        if utilidad_mensual > 0 and capacidad_pago > 50:
+            estado = "verde"
+            mensaje = "Tu negocio está en buena posición para pedir un préstamo"
+        elif utilidad_mensual > 0 and capacidad_pago > 0:
+            estado = "amarillo"
+            mensaje = "Puedes pedir un préstamo pequeño, tu margen es ajustado"
+        else:
+            estado = "rojo"
+            mensaje = "Por ahora no es recomendable pedir un préstamo"
+
+        return {
+            "periodo_analizado": "últimos 6 meses",
+            "ingresos_totales_6m": ingresos_6m,
+            "egresos_totales_6m": abs(egresos_6m),
+            "utilidad_total_6m": utilidad_6m,
+            "ingreso_mensual_promedio": ingreso_mensual,
+            "egreso_mensual_promedio": egreso_mensual,
+            "utilidad_mensual_promedio": utilidad_mensual,
+            "capacidad_pago_mensual": capacidad_pago,
+            "prestamo_estimado_minimo": prestamo_conservador,
+            "prestamo_estimado_maximo": prestamo_optimo,
+            "estado": estado,
+            "mensaje": mensaje,
+            "documentos_para_banco": [
+                "Cédula de identidad",
+                "RUC activo",
+                "Este reporte de Pana Financiero",
+                "Últimos 3 meses de movimientos Deuna"
+            ]
+        }
