@@ -329,7 +329,6 @@ class PanaAnalytics:
         mes_act = self._ingresos(self._filter_period(self.df, start_mes, self._hoy))
         acumulado = round(float(mes_act["monto"].sum()), 2)
 
-        # promedio diario ultimos 14 dias
         start_14 = self._hoy - timedelta(days=13)
         ultimos14 = self._ingresos(self._filter_period(self.df, start_14, self._hoy))
         dias_con_datos = int(ultimos14["fecha"].nunique()) or 1
@@ -339,10 +338,15 @@ class PanaAnalytics:
         dias_en_mes = int((end_mes - start_mes).days) + 1
         dias_restantes = max(0, dias_en_mes - dias_transcurridos)
 
-        proyeccion_min = round(acumulado + promedio_diario * 0.8 * dias_restantes, 2)
-        proyeccion_max = round(acumulado + promedio_diario * 1.2 * dias_restantes, 2)
+        mes_cerrado = dias_restantes == 0
 
-        # mes anterior
+        if mes_cerrado:
+            proyeccion_min = acumulado
+            proyeccion_max = acumulado
+        else:
+            proyeccion_min = round(acumulado + promedio_diario * 0.8 * dias_restantes, 2)
+            proyeccion_max = round(acumulado + promedio_diario * 1.2 * dias_restantes, 2)
+
         s_ant, e_ant = self._month_range(1)
         mes_ant = round(float(self._ingresos(self._filter_period(self.df, s_ant, e_ant))["monto"].sum()), 2)
 
@@ -353,6 +357,8 @@ class PanaAnalytics:
             "proyeccion_min": proyeccion_min,
             "proyeccion_max": proyeccion_max,
             "mes_anterior_total": mes_ant,
+            "mes_cerrado": mes_cerrado,
+            "mes": start_mes.strftime("%B %Y"),
         }
 
     # ── 10. buscar_transacciones ──────────────────────────────────────────────
