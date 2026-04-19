@@ -409,7 +409,7 @@ class PanaAnalytics:
             self._ingresos(periodo)["monto"].sum()), 2)
         egresos_6m = round(float(
             self._egresos(periodo)["monto"].sum()), 2)
-        utilidad_6m = round(ingresos_6m + egresos_6m, 2)
+        utilidad_6m = round(ingresos_6m - egresos_6m, 2)
 
         # Promedios mensuales
         meses = max(1, int((hoy - hace_6_meses).days / 30))
