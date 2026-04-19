@@ -300,4 +300,29 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "comisiones_deuna",
+            "description": (
+                "Calcula cuánto se fue en comisiones de Deuna en la semana o el mes. "
+                "Deuna cobra el 2% por cada transacción de ingreso (pagos digitales). "
+                "Úsala cuando el usuario pregunta cuánto pagó de comisión, cuánto le cobró Deuna, "
+                "cuánto se fue en comisiones, o cuánto perdió por las comisiones del sistema. "
+                "Ejemplos: '¿cuánto me cobró Deuna esta semana?', '¿cuánto pagué de comisión?', "
+                "'cuánto se fue en comisiones este mes', '¿cuánto me quitó Deuna?', "
+                "'cuánto perdí en comisiones', '¿cuánto me costó usar Deuna?'"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "periodo": {
+                        "type": "string",
+                        "enum": ["semana", "mes"],
+                        "description": "'semana' para comisiones de esta semana, 'mes' para este mes.",
+                    }
+                },
+            },
+        },
+    },
 ]
