@@ -33,6 +33,7 @@ class AskRequest(BaseModel):
 
 class AskResponse(BaseModel):
     respuesta: str
+    mensaje_carga: str = ""
 
 
 @app.get("/")
@@ -52,8 +53,9 @@ async def ask(body: AskRequest):
     if not body.id_negocio.strip():
         raise HTTPException(status_code=400, detail="id_negocio requerido")
     try:
+        from pana.loading_messages import get_mensaje_carga
         respuesta = await responder(body.pregunta, body.id_negocio)
-        return AskResponse(respuesta=respuesta)
+        return AskResponse(respuesta=respuesta, mensaje_carga=get_mensaje_carga())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -70,7 +72,8 @@ async def ask_sql(body: AskRequest):
         raise HTTPException(status_code=400, detail="id_negocio requerido")
     try:
         from pana.assistant import sql_responder
+        from pana.loading_messages import get_mensaje_carga
         respuesta = await sql_responder(body.pregunta, body.id_negocio)
-        return AskResponse(respuesta=respuesta)
+        return AskResponse(respuesta=respuesta, mensaje_carga=get_mensaje_carga())
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
