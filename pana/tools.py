@@ -248,4 +248,32 @@ TOOLS = [
             },
         },
     },
+    {
+        "type": "function",
+        "function": {
+            "name": "capacidad_prestamo",
+            "description": (
+                "Analiza si el comerciante puede pedir un préstamo "
+                "bancario, cuánto podría pedir, y qué documentos "
+                "necesita llevar al banco. Usa los últimos 6 meses "
+                "de transacciones para calcular ingresos, egresos, "
+                "utilidad y capacidad de pago mensual. "
+                "Úsala cuando el usuario pregunta sobre préstamos, "
+                "créditos, si puede pedir plata al banco, cuánto "
+                "le prestarían, o si califica para un crédito. "
+                "Ejemplos: '¿Puedo pedir un préstamo?', "
+                "'¿Cuánto me prestaría el banco?', "
+                "'quiero pedir un crédito', "
+                "'necesito plata prestada para mi negocio', "
+                "'¿califico para un préstamo?', "
+                "'quiero comprar más mercadería con un préstamo', "
+                "'¿cuánto puedo pagar de cuota al mes?', "
+                "'ayúdame a saber si el banco me da plata'"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+        },
+    },
 ]
