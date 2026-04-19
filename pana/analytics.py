@@ -29,6 +29,26 @@ class PanaAnalytics:
         last = (first + pd.DateOffset(months=1) - timedelta(days=1)).normalize()
         return first, last
 
+    def _week_range_aligned(self, offset: int = 0) -> tuple[pd.Timestamp, pd.Timestamp]:
+        monday_this = self._hoy - timedelta(days=self._hoy.dayofweek)
+        days_elapsed = (self._hoy - monday_this).days
+        if offset == 0:
+            return monday_this, self._hoy
+        else:
+            monday_prev = monday_this - timedelta(weeks=offset)
+            return monday_prev, monday_prev + timedelta(days=days_elapsed)
+
+    def _month_range_aligned(self, offset: int = 0) -> tuple[pd.Timestamp, pd.Timestamp]:
+        first_this = self._hoy.replace(day=1).normalize()
+        days_elapsed = (self._hoy - first_this).days
+        if offset == 0:
+            return first_this, self._hoy
+        else:
+            first_prev = (first_this - pd.DateOffset(months=offset)).normalize()
+            end_prev = first_prev + timedelta(days=days_elapsed)
+            last_prev = (first_prev + pd.DateOffset(months=1) - timedelta(days=1)).normalize()
+            return first_prev, min(end_prev, last_prev)
+
     def _filter_period(self, df: pd.DataFrame, start: pd.Timestamp, end: pd.Timestamp) -> pd.DataFrame:
         return df[(df["fecha"] >= start) & (df["fecha"] <= end)]
 
@@ -75,13 +95,16 @@ class PanaAnalytics:
         if self.df.empty:
             return {}
 
+        days_elapsed = (self._hoy - (self._hoy - timedelta(days=self._hoy.dayofweek))).days + 1
+
         if periodo == "semana":
-            s_act, e_act = self._week_range(0)
-            s_ant, e_ant = self._week_range(1)
-            label_act, label_ant = "esta semana", "semana anterior"
+            s_act, e_act = self._week_range_aligned(0)
+            s_ant, e_ant = self._week_range_aligned(1)
+            label_act = f"esta semana ({days_elapsed} días)"
+            label_ant = f"mismos {days_elapsed} días de la semana anterior"
         else:
-            s_act, e_act = self._month_range(0)
-            s_ant, e_ant = self._month_range(1)
+            s_act, e_act = self._month_range_aligned(0)
+            s_ant, e_ant = self._month_range_aligned(1)
             label_act = s_act.strftime("%B %Y")
             label_ant = s_ant.strftime("%B %Y")
 
@@ -109,9 +132,9 @@ class PanaAnalytics:
             return {"ingresos": 0, "egresos": 0, "balance": 0, "periodo": periodo}
 
         if periodo == "semana":
-            start, end = self._week_range(0)
+            start, end = self._week_range_aligned(0)
         else:
-            start, end = self._month_range(0)
+            start, end = self._month_range_aligned(0)
 
         chunk = self._filter_period(self.df, start, end)
         ingresos = round(float(self._ingresos(chunk)["monto"].sum()), 2)
@@ -133,9 +156,9 @@ class PanaAnalytics:
             return []
 
         if periodo == "semana":
-            start, end = self._week_range(0)
+            start, end = self._week_range_aligned(0)
         else:
-            start, end = self._month_range(0)
+            start, end = self._month_range_aligned(0)
 
         chunk = self._ingresos(self._filter_period(self.df, start, end))
         if chunk.empty:
@@ -215,9 +238,9 @@ class PanaAnalytics:
             return {"mejor": None, "peor": None, "dia_semana_flojo": None}
 
         if periodo == "semana":
-            start, end = self._week_range(0)
+            start, end = self._week_range_aligned(0)
         else:
-            start, end = self._month_range(0)
+            start, end = self._month_range_aligned(0)
 
         chunk = self._ingresos(self._filter_period(self.df, start, end))
         if chunk.empty:
